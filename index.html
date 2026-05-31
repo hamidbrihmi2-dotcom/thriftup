@@ -18,8 +18,15 @@
     <!-- Main Dashboard -->
     <main class="flex-1 flex flex-col items-center justify-start space-y-4 w-full max-w-md mx-auto">
         
-        <!-- Live Camera Viewfinder Window -->
-        <div id="reader" class="w-full bg-slate-800 rounded-2xl overflow-hidden border-2 border-slate-700 shadow-xl" style="min-height: 180px;"></div>
+        <!-- Camera Activation Trigger Control -->
+        <div class="w-full text-center">
+            <button onclick="startCameraScanner()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                📷 Open Camera Scanner
+            </button>
+        </div>
+
+        <!-- Live Camera Viewfinder Window PlaceHolder -->
+        <div id="reader" class="w-full bg-slate-800 rounded-2xl overflow-hidden border-2 border-slate-700 shadow-xl hidden" style="min-height: 250px;"></div>
 
         <!-- Clarification / Manual Input Area -->
         <div class="w-full bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-md">
@@ -78,14 +85,27 @@
 
     <!-- App Logic Engine -->
     <script>
+        let html5QrcodeScanner = null;
+
+        function startCameraScanner() {
+            const readerDiv = document.getElementById('reader');
+            readerDiv.classList.remove('hidden'); // Show camera window layout area
+            
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+                    fps: 10, 
+                    qrbox: 220,
+                    rememberLastUsedCamera: true
+                });
+                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+            }
+        }
+
         function calculateVerdict(title, marketPrice, activeCount, soldCount) {
             const buyCost = parseFloat(document.getElementById('buy-cost').value) || 5.00;
             const category = document.getElementById('item-category').value;
-            
-            // eBay average fee structure (13.5% + $0.40)
             const ebayFee = (marketPrice * 0.135) + 0.40;
             
-            // Dynamic shipping rules based on drop-down choice
             let shipping = 5.00;
             if (category === 'shoes') shipping = 9.00;
             if (category === 'electronics') shipping = 14.00;
@@ -93,11 +113,9 @@
             const totalExpenses = buyCost + ebayFee + shipping;
             const netProfit = marketPrice - totalExpenses;
 
-            // Calculate Sell-Through Rate
             const strRatio = activeCount > 0 ? (soldCount / activeCount) * 100 : 100;
             const isOversaturated = strRatio < 20; 
 
-            // Checking for Special Tags
             const titleLower = title.toLowerCase();
             const isVintage = titleLower.includes('vintage') || titleLower.includes('90s') || titleLower.includes('retro') || titleLower.includes('199');
             const isCollectible = titleLower.includes('rare') || titleLower.includes('limited') || titleLower.includes('edition') || titleLower.includes('card');
@@ -150,17 +168,3 @@
 
             let mockPrice = 30.00; let mockActive = 50; let mockSold = 35;
             if (text.toLowerCase().includes('vintage')) { mockPrice = 75.00; mockActive = 12; mockSold = 28; }
-            if (text.toLowerCase().includes('target')) { mockPrice = 15.00; mockActive = 300; mockSold = 15; }
-            calculateVerdict(text, mockPrice, mockActive, mockSold);
-        }
-
-        function simulateRandomScan() {
-            const testItems = [
-                { title: "Vintage 1994 Space Jam Movie Tee", price: 65.00, active: 15, sold: 45 },
-                { title: "Generic Over-Saturated Fidget Spinner", price: 12.00, active: 500, sold: 10 },
-                { title: "Rare Pokémon Holographic Card", price: 180.00, active: 40, sold: 35 }
-            ];
-            const randomItem = testItems[Math.floor(Math.random() * testItems.length)];
-            calculateVerdict(randomItem.title, randomItem.price, randomItem.active, randomItem.sold);
-        }
-
