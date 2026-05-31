@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ThriftUP - Instant Sourcing</title>
     <script src="https://tailwindcss.com"></script>
-    <!-- Upgraded to the latest stable scanner version -->
     <script src="https://cloudflare.com"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col justify-between p-4">
@@ -13,16 +12,20 @@
     <!-- Header -->
     <header class="text-center py-2">
         <h1 class="text-3xl font-extrabold tracking-wider text-yellow-400">ThriftUP 🚀</h1>
-        <p class="text-xs text-slate-400">100% Free Smart Sourcing Engine</p>
+        <p class="text-xs text-slate-400">100% Free Multi-Lens Scanner Engine</p>
     </header>
 
     <!-- Main Dashboard -->
     <main class="flex-1 flex flex-col items-center justify-start space-y-4 w-full max-w-md mx-auto">
         
-        <!-- Camera Activation Trigger Control -->
-        <div class="w-full text-center">
-            <button onclick="startCameraScanner()" id="cam-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                📷 Activate Back Camera Scanner
+        <!-- Lens Switcher Dashboard Controls -->
+        <div class="w-full bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-md space-y-2">
+            <label class="block text-xs font-bold uppercase tracking-wide text-slate-400">1. Choose Your Lens:</label>
+            <select id="camera-select" class="w-full bg-slate-700 text-white font-semibold rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">🔄 Loading available cameras...</option>
+            </select>
+            <button onclick="startSelectedCamera()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition text-sm">
+                📷 Start Selected Camera Feed
             </button>
         </div>
 
@@ -46,7 +49,6 @@
             <p id="item-display-name" class="text-xs text-yellow-300 font-semibold mb-2 italic"></p>
             <p id="profit-text" class="text-xl font-bold text-slate-200 mb-3">Estimated Profit: $0.00</p>
             
-            <!-- Competition Dashboard Metrics Panel -->
             <div class="grid grid-cols-2 gap-2 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 mb-3 text-left text-xs">
                 <div>🔥 <span class="text-slate-400">Sold (90d):</span> <span id="metric-sold" class="font-bold text-white">0</span></div>
                 <div>📦 <span class="text-slate-400">Active Supply:</span> <span id="metric-active" class="font-bold text-white">0</span></div>
@@ -56,7 +58,6 @@
                 </div>
             </div>
 
-            <!-- Badges Space -->
             <div id="badges" class="flex flex-wrap justify-center gap-2 mt-2"></div>
         </div>
 
@@ -88,33 +89,51 @@
     <script>
         let html5QrCode = null;
 
-        function startCameraScanner() {
+        // Auto scan and populate all device camera lenses as soon as app opens
+        document.addEventListener("DOMContentLoaded", () => {
+            Html5Qrcode.getCameras().then(cameras => {
+                const select = document.getElementById('camera-select');
+                select.innerHTML = ''; // Reset loading string
+                
+                if (cameras && cameras.length > 0) {
+                    cameras.forEach((camera, index) => {
+                        const option = document.createElement('option');
+                        option.value = camera.id;
+                        option.text = camera.label || `Camera ${index + 1}`;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">❌ No Cameras Detected</option>';
+                }
+            }).catch(err => {
+                console.error("Error listing lenses: ", err);
+                const select = document.getElementById('camera-select');
+                select.innerHTML = '<option value="">⚠️ Permission Blocked or Missing HTTPS</option>';
+            });
+        });
+
+        function startSelectedCamera() {
+            const cameraId = document.getElementById('camera-select').value;
+            if (!cameraId) return alert("Please choose a camera from the list first!");
+
             const readerDiv = document.getElementById('reader');
-            const btn = document.getElementById('cam-btn');
-            
             readerDiv.classList.remove('hidden'); 
-            btn.innerText = "🔄 Initializing Camera Lens...";
-            
-            // Explicitly targeting the BACK camera environment for real-world thrifting
+
             if (!html5QrCode) {
                 html5QrCode = new Html5Qrcode("reader");
+            } else {
+                // If a lens is running already, shut it down before shifting channels
+                html5QrCode.stop().catch(() => {});
             }
 
             html5QrCode.start(
-                { facingMode: "environment" }, 
+                cameraId, 
                 { fps: 10, qrbox: { width: 250, height: 150 } },
                 onScanSuccess,
                 onScanFailure
             )
-            .then(() => {
-                btn.innerText = "🟢 Camera Active & Scanning";
-                btn.className = "w-full bg-green-700 text-white font-bold py-2 px-4 rounded-xl shadow-inner transition flex items-center justify-center gap-2 pointer-events-none";
-            })
             .catch((err) => {
-                console.error("Camera start error: ", err);
-                btn.innerText = "❌ Tap to Try Again (Grant Permissions)";
-                btn.className = "w-full bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition";
-                alert("Camera error! Make sure you clicked 'Allow Camera' in your browser pop-up.");
+                alert("Could not open this camera channel. Try choosing a different lens option from the list!");
             });
         }
 
@@ -159,17 +178,3 @@
                 card.className = "w-full p-5 rounded-2xl text-center transition-all bg-green-600 border-2 border-green-400 text-white shadow-lg shadow-green-900/50";
                 vText.innerText = "💥 BUY 💥";
                 strDisplay.className = "font-black text-green-300";
-            } else if (isOversaturated && netProfit >= totalExpenses) {
-                card.className = "w-full p-5 rounded-2xl text-center transition-all bg-amber-600 border-2 border-amber-400 text-white shadow-lg shadow-amber-900/50";
-                vText.innerText = "🛑 PASS 🛑";
-                strDisplay.className = "font-black text-red-300 animate-pulse";
-                badgesDiv.innerHTML += `<span class="bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-full">⚠️ OVERSATURATED COMPETITION</span>`;
-            } else {
-                card.className = "w-full p-5 rounded-2xl text-center transition-all bg-red-600 border-2 border-red-400 text-white shadow-lg shadow-red-900/50";
-                vText.innerText = "🛑 PASS 🛑";
-                strDisplay.className = "font-black text-slate-300";
-            }
-
-            dName.innerText = `"${title}"`;
-            pText.innerText = `Net Profit: $${netProfit.toFixed(2)} (Market Value: $${marketPrice.toFixed(2)})`;
-
