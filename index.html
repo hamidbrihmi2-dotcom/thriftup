@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ThriftUP - Instant Sourcing</title>
     <script src="https://tailwindcss.com"></script>
-    <script src="https://unpkg.com"></script>
+    <!-- Upgraded to the latest stable scanner version -->
+    <script src="https://cloudflare.com"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col justify-between p-4">
 
@@ -20,8 +21,8 @@
         
         <!-- Camera Activation Trigger Control -->
         <div class="w-full text-center">
-            <button onclick="startCameraScanner()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                📷 Open Camera Scanner
+            <button onclick="startCameraScanner()" id="cam-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                📷 Activate Back Camera Scanner
             </button>
         </div>
 
@@ -85,20 +86,36 @@
 
     <!-- App Logic Engine -->
     <script>
-        let html5QrcodeScanner = null;
+        let html5QrCode = null;
 
         function startCameraScanner() {
             const readerDiv = document.getElementById('reader');
-            readerDiv.classList.remove('hidden'); // Show camera window layout area
+            const btn = document.getElementById('cam-btn');
             
-            if (!html5QrcodeScanner) {
-                html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-                    fps: 10, 
-                    qrbox: 220,
-                    rememberLastUsedCamera: true
-                });
-                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+            readerDiv.classList.remove('hidden'); 
+            btn.innerText = "🔄 Initializing Camera Lens...";
+            
+            // Explicitly targeting the BACK camera environment for real-world thrifting
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
             }
+
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                { fps: 10, qrbox: { width: 250, height: 150 } },
+                onScanSuccess,
+                onScanFailure
+            )
+            .then(() => {
+                btn.innerText = "🟢 Camera Active & Scanning";
+                btn.className = "w-full bg-green-700 text-white font-bold py-2 px-4 rounded-xl shadow-inner transition flex items-center justify-center gap-2 pointer-events-none";
+            })
+            .catch((err) => {
+                console.error("Camera start error: ", err);
+                btn.innerText = "❌ Tap to Try Again (Grant Permissions)";
+                btn.className = "w-full bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition";
+                alert("Camera error! Make sure you clicked 'Allow Camera' in your browser pop-up.");
+            });
         }
 
         function calculateVerdict(title, marketPrice, activeCount, soldCount) {
@@ -156,15 +173,3 @@
             dName.innerText = `"${title}"`;
             pText.innerText = `Net Profit: $${netProfit.toFixed(2)} (Market Value: $${marketPrice.toFixed(2)})`;
 
-            if (isVintage) badgesDiv.innerHTML += `<span class="bg-yellow-400 text-slate-900 text-xs font-black px-2.5 py-1 rounded-full">🕰️ VINTAGE</span>`;
-            if (isCollectible) badgesDiv.innerHTML += `<span class="bg-purple-500 text-white text-xs font-black px-2.5 py-1 rounded-full">🏆 COLLECTIBLE</span>`;
-            if (isHighValue) badgesDiv.innerHTML += `<span class="bg-cyan-400 text-slate-900 text-xs font-black px-2.5 py-1 rounded-full">💎 HIGH VALUE</span>`;
-        }
-
-        function processManualSearch() {
-            const inputField = document.getElementById('manual-input');
-            const text = inputField.value.trim();
-            if (text === "") return alert("Please type some item info first!");
-
-            let mockPrice = 30.00; let mockActive = 50; let mockSold = 35;
-            if (text.toLowerCase().includes('vintage')) { mockPrice = 75.00; mockActive = 12; mockSold = 28; }
