@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ThriftUP - Instant Sourcing</title>
-    <!-- Tailwind Engine -->
+    <!-- Tailwind CSS Dynamic CDN -->
     <script src="https://tailwindcss.com"></script>
-    <!-- QR / Barcode Hardware Engine -->
+    <!-- HTML5 QRCode Scanner CDN Library -->
     <script src="https://unpkg.com" type="text/javascript"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col justify-between p-4">
@@ -92,11 +92,11 @@
         let html5QrCode = null;
 
         document.addEventListener("DOMContentLoaded", () => {
+            const select = document.getElementById('camera-select');
+            
             if (typeof Html5Qrcode !== "undefined") {
                 Html5Qrcode.getCameras().then(cameras => {
-                    const select = document.getElementById('camera-select');
-                    select.innerHTML = '';
-                    
+                    select.innerHTML = ''; 
                     if (cameras && cameras.length > 0) {
                         cameras.forEach((camera, index) => {
                             const option = document.createElement('option');
@@ -105,21 +105,24 @@
                             select.appendChild(option);
                         });
                     } else {
-                        select.innerHTML = '<option value="">❌ No Cameras Detected</option>';
+                        select.innerHTML = '<option value="">❌ No Hardware Camera Found</option>';
                     }
                 }).catch(err => {
-                    console.error("Error listing lenses: ", err);
-                    const select = document.getElementById('camera-select');
-                    select.innerHTML = '<option value="">⚠️ Permission Blocked or Missing HTTPS</option>';
+                    console.error("Camera access failed:", err);
+                    select.innerHTML = '<option value="">⚠️ Grant Camera Permission in Address Bar</option>';
                 });
             } else {
-                console.error("Scanner library failed to load.");
+                select.innerHTML = '<option value="">❌ Scanner Library Offline</option>';
             }
         });
 
         function startSelectedCamera() {
+            if (typeof Html5Qrcode === "undefined") {
+                return alert("Scanner module layout error. Re-save your files.");
+            }
+            
             const cameraId = document.getElementById('camera-select').value;
-            if (!cameraId) return alert("Please choose a camera from the list first!");
+            if (!cameraId) return alert("Please select a lens option first.");
 
             const readerDiv = document.getElementById('reader');
             readerDiv.classList.remove('hidden'); 
@@ -137,34 +140,34 @@
                 onScanFailure
             )
             .catch((err) => {
-                alert("Could not open this camera channel. Try choosing a different lens option from the list!");
+                alert("Camera channel offline. Check security details.");
             });
         }
 
         function onScanSuccess(decodedText, decodedResult) {
-            processEngineData(`Barcode: ${decodedText}`);
+            processEngineData(`Scanned Barcode: ${decodedText}`);
         }
 
         function onScanFailure(error) {
-            console.log(`Scan searching... ${error}`);
+            console.log(`Searching...`);
         }
 
         function processManualSearch() {
             const inputVal = document.getElementById('manual-input').value.trim();
-            if (!inputVal) return alert("Please type something to scan manually!");
+            if (!inputVal) return alert("Please enter text manually.");
             processEngineData(inputVal);
         }
 
         function simulateRandomScan() {
             const mockItems = [
-                { name: "Retro Nike Windbreaker", basePrice: 45, sold: 45, active: 15 },
-                { name: "90s Sony Walkman Cassette Player", basePrice: 85, sold: 12, active: 24 },
-                { name: "Generic Modern Fast Fashion Tee", basePrice: 12, sold: 5, active: 120 },
-                { name: "Vintage Levi 501 Selvedge", basePrice: 110, sold: 65, active: 10 }
+                { name: "Retro Nike Windbreaker Jacket", basePrice: 48, sold: 52, active: 14 },
+                { name: "Vintage Sony Walkman Cassette", basePrice: 95, sold: 18, active: 11 },
+                { name: "Modern Fast Fashion Graphic Tee", basePrice: 10, sold: 4, active: 140 },
+                { name: "Vintage Levi 501 Selvedge Denim", basePrice: 125, sold: 85, active: 9 }
             ];
             const randomItem = mockItems[Math.floor(Math.random() * mockItems.length)];
             
-            const price = Math.floor(randomItem.basePrice * (0.8 + Math.random() * 0.4));
+            const price = Math.floor(randomItem.basePrice * (0.85 + Math.random() * 0.3));
             const active = Math.floor(randomItem.active * (0.8 + Math.random() * 0.4)) || 1;
             const sold = Math.floor(randomItem.sold * (0.8 + Math.random() * 0.4));
 
@@ -172,9 +175,9 @@
         }
 
         function processEngineData(title) {
-            const randomPrice = Math.floor(Math.random() * 90) + 15;
-            const randomActive = Math.floor(Math.random() * 50) + 1;
-            const randomSold = Math.floor(Math.random() * 70);
+            const randomPrice = Math.floor(Math.random() * 85) + 15;
+            const randomActive = Math.floor(Math.random() * 45) + 1;
+            const randomSold = Math.floor(Math.random() * 65);
             displayVerdictCard(title, randomPrice, randomActive, randomSold);
         }
 
@@ -184,4 +187,3 @@
             const card = document.getElementById('verdict-card');
             const verdictText = document.getElementById('verdict-text');
             const itemDisplay = document.getElementById('item-display-name');
-            const profitText = document.getElementById('profit-text');
