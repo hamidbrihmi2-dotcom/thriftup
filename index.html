@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ThriftUP - Instant Sourcing</title>
-    <!-- Tailwind CSS -->
+    <!-- Tailwind Engine -->
     <script src="https://tailwindcss.com"></script>
-    <!-- Fixed Camera Scanning Library CDN -->
+    <!-- QR / Barcode Hardware Engine -->
     <script src="https://unpkg.com" type="text/javascript"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col justify-between p-4">
@@ -91,12 +91,11 @@
     <script>
         let html5QrCode = null;
 
-        // Auto scan and populate all device camera lenses as soon as app opens
         document.addEventListener("DOMContentLoaded", () => {
             if (typeof Html5Qrcode !== "undefined") {
                 Html5Qrcode.getCameras().then(cameras => {
                     const select = document.getElementById('camera-select');
-                    select.innerHTML = ''; // Reset loading string
+                    select.innerHTML = '';
                     
                     if (cameras && cameras.length > 0) {
                         cameras.forEach((camera, index) => {
@@ -184,3 +183,5 @@
             
             const card = document.getElementById('verdict-card');
             const verdictText = document.getElementById('verdict-text');
+            const itemDisplay = document.getElementById('item-display-name');
+            const profitText = document.getElementById('profit-text');
