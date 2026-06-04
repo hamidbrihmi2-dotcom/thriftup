@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ThriftUP - Instant Sourcing</title>
+    <!-- Tailwind CSS -->
     <script src="https://tailwindcss.com"></script>
-    <script src="https://cloudflare.com"></script>
+    <!-- Fixed Camera Scanning Library CDN -->
+    <script src="https://unpkg.com" type="text/javascript"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col justify-between p-4">
 
@@ -53,7 +55,7 @@
                 <div>🔥 <span class="text-slate-400">Sold (90d):</span> <span id="metric-sold" class="font-bold text-white">0</span></div>
                 <div>📦 <span class="text-slate-400">Active Supply:</span> <span id="metric-active" class="font-bold text-white">0</span></div>
                 <div class="col-span-2 pt-1 border-t border-slate-800 mt-1 flex justify-between items-center">
-                    <span>📊 <span class="text-slate-400">Market Speed:</span></span>
+                    <span>📊 <span class="text-slate-400">Sell-Through Rate:</span></span>
                     <span id="metric-str" class="font-black">0%</span>
                 </div>
             </div>
@@ -76,7 +78,7 @@
                 <span class="text-slate-300">Default Est. Buy Cost:</span>
                 <div class="flex items-center bg-slate-700 rounded px-2">
                     <span class="text-slate-400 text-xs mr-1">$</span>
-                    <input type="number" id="buy-cost" value="5.00" class="w-12 bg-transparent text-center text-yellow-400 font-bold focus:outline-none">
+                    <input type="number" id="buy-cost" value="5.00" step="0.01" class="w-12 bg-transparent text-center text-yellow-400 font-bold focus:outline-none">
                 </div>
             </div>
             <button onclick="simulateRandomScan()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs py-2 rounded-lg transition border border-slate-600">
@@ -91,25 +93,29 @@
 
         // Auto scan and populate all device camera lenses as soon as app opens
         document.addEventListener("DOMContentLoaded", () => {
-            Html5Qrcode.getCameras().then(cameras => {
-                const select = document.getElementById('camera-select');
-                select.innerHTML = ''; // Reset loading string
-                
-                if (cameras && cameras.length > 0) {
-                    cameras.forEach((camera, index) => {
-                        const option = document.createElement('option');
-                        option.value = camera.id;
-                        option.text = camera.label || `Camera ${index + 1}`;
-                        select.appendChild(option);
-                    });
-                } else {
-                    select.innerHTML = '<option value="">❌ No Cameras Detected</option>';
-                }
-            }).catch(err => {
-                console.error("Error listing lenses: ", err);
-                const select = document.getElementById('camera-select');
-                select.innerHTML = '<option value="">⚠️ Permission Blocked or Missing HTTPS</option>';
-            });
+            if (typeof Html5Qrcode !== "undefined") {
+                Html5Qrcode.getCameras().then(cameras => {
+                    const select = document.getElementById('camera-select');
+                    select.innerHTML = ''; // Reset loading string
+                    
+                    if (cameras && cameras.length > 0) {
+                        cameras.forEach((camera, index) => {
+                            const option = document.createElement('option');
+                            option.value = camera.id;
+                            option.text = camera.label || `Camera ${index + 1}`;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        select.innerHTML = '<option value="">❌ No Cameras Detected</option>';
+                    }
+                }).catch(err => {
+                    console.error("Error listing lenses: ", err);
+                    const select = document.getElementById('camera-select');
+                    select.innerHTML = '<option value="">⚠️ Permission Blocked or Missing HTTPS</option>';
+                });
+            } else {
+                console.error("Scanner library failed to load.");
+            }
         });
 
         function startSelectedCamera() {
@@ -122,7 +128,6 @@
             if (!html5QrCode) {
                 html5QrCode = new Html5Qrcode("reader");
             } else {
-                // If a lens is running already, shut it down before shifting channels
                 html5QrCode.stop().catch(() => {});
             }
 
@@ -137,44 +142,45 @@
             });
         }
 
-        function calculateVerdict(title, marketPrice, activeCount, soldCount) {
-            const buyCost = parseFloat(document.getElementById('buy-cost').value) || 5.00;
-            const category = document.getElementById('item-category').value;
-            const ebayFee = (marketPrice * 0.135) + 0.40;
+        function onScanSuccess(decodedText, decodedResult) {
+            processEngineData(`Barcode: ${decodedText}`);
+        }
+
+        function onScanFailure(error) {
+            console.log(`Scan searching... ${error}`);
+        }
+
+        function processManualSearch() {
+            const inputVal = document.getElementById('manual-input').value.trim();
+            if (!inputVal) return alert("Please type something to scan manually!");
+            processEngineData(inputVal);
+        }
+
+        function simulateRandomScan() {
+            const mockItems = [
+                { name: "Retro Nike Windbreaker", basePrice: 45, sold: 45, active: 15 },
+                { name: "90s Sony Walkman Cassette Player", basePrice: 85, sold: 12, active: 24 },
+                { name: "Generic Modern Fast Fashion Tee", basePrice: 12, sold: 5, active: 120 },
+                { name: "Vintage Levi 501 Selvedge", basePrice: 110, sold: 65, active: 10 }
+            ];
+            const randomItem = mockItems[Math.floor(Math.random() * mockItems.length)];
             
-            let shipping = 5.00;
-            if (category === 'shoes') shipping = 9.00;
-            if (category === 'electronics') shipping = 14.00;
+            const price = Math.floor(randomItem.basePrice * (0.8 + Math.random() * 0.4));
+            const active = Math.floor(randomItem.active * (0.8 + Math.random() * 0.4)) || 1;
+            const sold = Math.floor(randomItem.sold * (0.8 + Math.random() * 0.4));
+
+            displayVerdictCard(randomItem.name, price, active, sold);
+        }
+
+        function processEngineData(title) {
+            const randomPrice = Math.floor(Math.random() * 90) + 15;
+            const randomActive = Math.floor(Math.random() * 50) + 1;
+            const randomSold = Math.floor(Math.random() * 70);
+            displayVerdictCard(title, randomPrice, randomActive, randomSold);
+        }
+
+        function displayVerdictCard(title, marketPrice, activeCount, soldCount) {
+            const result = calculateVerdict(marketPrice, activeCount, soldCount);
             
-            const totalExpenses = buyCost + ebayFee + shipping;
-            const netProfit = marketPrice - totalExpenses;
-
-            const strRatio = activeCount > 0 ? (soldCount / activeCount) * 100 : 100;
-            const isOversaturated = strRatio < 20; 
-
-            const titleLower = title.toLowerCase();
-            const isVintage = titleLower.includes('vintage') || titleLower.includes('90s') || titleLower.includes('retro') || titleLower.includes('199');
-            const isCollectible = titleLower.includes('rare') || titleLower.includes('limited') || titleLower.includes('edition') || titleLower.includes('card');
-            const isHighValue = marketPrice >= 100.00;
-
-            const isBuy = (netProfit >= totalExpenses || isHighValue) && !isOversaturated;
-
             const card = document.getElementById('verdict-card');
-            const vText = document.getElementById('verdict-text');
-            const pText = document.getElementById('profit-text');
-            const dName = document.getElementById('item-display-name');
-            const badgesDiv = document.getElementById('badges');
-
-            document.getElementById('metric-sold').innerText = soldCount;
-            document.getElementById('metric-active').innerText = activeCount;
-            
-            const strDisplay = document.getElementById('metric-str');
-            strDisplay.innerText = strRatio.toFixed(0) + "%";
-
-            card.classList.remove('hidden');
-            badgesDiv.innerHTML = ''; 
-
-            if (isBuy) {
-                card.className = "w-full p-5 rounded-2xl text-center transition-all bg-green-600 border-2 border-green-400 text-white shadow-lg shadow-green-900/50";
-                vText.innerText = "💥 BUY 💥";
-                strDisplay.className = "font-black text-green-300";
+            const verdictText = document.getElementById('verdict-text');
