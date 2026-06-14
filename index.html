@@ -1,11 +1,13 @@
-html<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ThriftUP - Instant Sourcing</title>
+    <!-- Tailwind CSS Dynamic CDN -->
     <script src="https://tailwindcss.com"></script>
-    <script src="https://unpkg.com" type="text/javascript"></script>
+    <!-- Fixed Production Mobile Camera Scanner CDN Library -->
+    <script src="https://cloudflare.com" type="text/javascript"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col justify-between p-4">
 
@@ -116,7 +118,7 @@ html<!DOCTYPE html>
 
         function startSelectedCamera() {
             if (typeof Html5Qrcode === "undefined") {
-                return alert("Scanner module layout error. Re-save your files.");
+                return alert("Scanner module library error. Re-save your files.");
             }
             
             const cameraId = document.getElementById('camera-select').value;
@@ -184,5 +186,5 @@ html<!DOCTYPE html>
             
             const card = document.getElementById('verdict-card');
             const verdictText = document.getElementById('verdict-text');
-            const itemDisplay = document.getElementById('item-display-name');
-            const profitText = document.getElementById('profit-text');
+
+                
