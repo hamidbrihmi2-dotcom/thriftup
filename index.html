@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ThriftUP - Instant Sourcing</title>
-    <!-- Tailwind CSS Dynamic CDN -->
+    <!-- Tailwind CSS Dynamic Engine -->
     <script src="https://tailwindcss.com"></script>
-    <!-- Fixed Production Mobile Camera Scanner CDN Library -->
-    <script src="https://cloudflare.com" type="text/javascript"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col justify-between p-4">
 
@@ -24,15 +22,25 @@
         <div class="w-full bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-md space-y-2">
             <label class="block text-xs font-bold uppercase tracking-wide text-slate-400">1. Choose Your Lens:</label>
             <select id="camera-select" class="w-full bg-slate-700 text-white font-semibold rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">🔄 Loading available cameras...</option>
+                <option value="">🔄 Requesting camera system...</option>
             </select>
             <button onclick="startSelectedCamera()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition text-sm">
                 📷 Start Selected Camera Feed
             </button>
         </div>
 
-        <!-- Live Camera Viewfinder Window PlaceHolder -->
-        <div id="reader" class="w-full bg-slate-800 rounded-2xl overflow-hidden border-2 border-slate-700 shadow-xl hidden" style="min-height: 250px;"></div>
+        <!-- Camera Troubleshoot Panel (Visible if hardware blocked) -->
+        <div id="troubleshoot-panel" class="w-full bg-amber-950/40 border border-amber-700/60 p-3 rounded-xl text-xs space-y-1 text-amber-200 hidden">
+            <p class="font-bold text-amber-400">⚠️ Camera Streaming Blocked:</p>
+            <p>• <b>Android:</b> Tap Lock icon next to URL > Site Settings > Access Camera.</p>
+            <p>• <b>MacBook:</b> Go to System Settings > Privacy & Security > Camera > Check Browser.</p>
+        </div>
+
+        <!-- Pure Native HTML5 Video Viewfinder -->
+        <div class="w-full bg-slate-800 rounded-2xl overflow-hidden border-2 border-slate-700 shadow-xl hidden flex justify-center items-center relative" id="video-container" style="min-height: 250px;">
+            <video id="native-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+            <div class="absolute border-2 border-dashed border-yellow-400 w-48 h-28 rounded pointer-events-none opacity-60"></div>
+        </div>
 
         <!-- Clarification / Manual Input Area -->
         <div class="w-full bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-md">
@@ -89,102 +97,81 @@
 
     <!-- App Logic Engine -->
     <script>
-        let html5QrCode = null;
+        let currentStream = null;
 
         document.addEventListener("DOMContentLoaded", () => {
+            initCameraSystem();
+        });
+
+        function initCameraSystem() {
             const select = document.getElementById('camera-select');
+            const troubleshoot = document.getElementById('troubleshoot-panel');
             
-            if (typeof Html5Qrcode !== "undefined") {
-                Html5Qrcode.getCameras().then(cameras => {
-                    select.innerHTML = ''; 
-                    if (cameras && cameras.length > 0) {
-                        cameras.forEach((camera, index) => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                select.innerHTML = '<option value="">❌ Secure Media Layout Engine Blocked</option>';
+                troubleshoot.classList.remove('hidden');
+                return;
+            }
+
+            // Direct MediaStream Constraints Allocation Call
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => {
+                    stream.getTracks().forEach(track => track.stop());
+                    return navigator.mediaDevices.enumerateDevices();
+                })
+                .then(devices => {
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    select.innerHTML = '';
+
+                    if (videoDevices.length > 0) {
+                        troubleshoot.classList.add('hidden');
+                        videoDevices.forEach((device, index) => {
                             const option = document.createElement('option');
-                            option.value = camera.id;
-                            option.text = camera.label || `Camera ${index + 1}`;
+                            option.value = device.deviceId;
+                            if(device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('environment')) {
+                                option.selected = true;
+                            }
+                            option.text = device.label || `Camera Lens ${index + 1}`;
                             select.appendChild(option);
                         });
                     } else {
-                        select.innerHTML = '<option value="">❌ No Hardware Camera Found</option>';
+                        select.innerHTML = '<option value="">❌ No Hardware Lenses Available</option>';
+                        troubleshoot.classList.remove('hidden');
                     }
-                }).catch(err => {
-                    console.error("Camera access failed:", err);
-                    select.innerHTML = '<option value="">⚠️ Grant Camera Permission in Address Bar</option>';
+                })
+                .catch(err => {
+                    console.error("Camera detection error:", err);
+                    select.innerHTML = '<option value="">⚠️ System Access Blocked</option>';
+                    troubleshoot.classList.remove('hidden');
                 });
-            } else {
-                select.innerHTML = '<option value="">❌ Scanner Library Offline</option>';
-            }
-        });
+        }
 
         function startSelectedCamera() {
-            if (typeof Html5Qrcode === "undefined") {
-                return alert("Scanner module library error. Re-save your files.");
-            }
-            
             const cameraId = document.getElementById('camera-select').value;
-            if (!cameraId) return alert("Please select a lens option first.");
-
-            const readerDiv = document.getElementById('reader');
-            readerDiv.classList.remove('hidden'); 
-
-            if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("reader");
-            } else {
-                html5QrCode.stop().catch(() => {});
+            if (!cameraId) {
+                // Fail-safe default connection query if select remains blocked by cache
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                    .then(stream => handleStreamSuccess(stream))
+                    .catch(() => alert("Hardware layer initialization failed. Update web browser permissions."));
+                return;
             }
 
-            html5QrCode.start(
-                cameraId, 
-                { fps: 10, qrbox: { width: 250, height: 150 } },
-                onScanSuccess,
-                onScanFailure
-            )
-            .catch((err) => {
-                alert("Camera channel offline. Check security details.");
-            });
+            const constraints = {
+                video: {
+                    deviceId: { exact: cameraId },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => handleStreamSuccess(stream))
+                .catch(err => {
+                    // Backup option if explicit channel constraint target breaks on older devices
+                    navigator.mediaDevices.getUserMedia({ video: true })
+                        .then(stream => handleStreamSuccess(stream))
+                        .catch(() => alert("Could not link to target lens layout. Check system properties."));
+                });
         }
 
-        function onScanSuccess(decodedText, decodedResult) {
-            processEngineData(`Scanned Barcode: ${decodedText}`);
-        }
-
-        function onScanFailure(error) {
-            console.log(`Searching...`);
-        }
-
-        function processManualSearch() {
-            const inputVal = document.getElementById('manual-input').value.trim();
-            if (!inputVal) return alert("Please enter text manually.");
-            processEngineData(inputVal);
-        }
-
-        function simulateRandomScan() {
-            const mockItems = [
-                { name: "Retro Nike Windbreaker Jacket", basePrice: 48, sold: 52, active: 14 },
-                { name: "Vintage Sony Walkman Cassette", basePrice: 95, sold: 18, active: 11 },
-                { name: "Modern Fast Fashion Graphic Tee", basePrice: 10, sold: 4, active: 140 },
-                { name: "Vintage Levi 501 Selvedge Denim", basePrice: 125, sold: 85, active: 9 }
-            ];
-            const randomItem = mockItems[Math.floor(Math.random() * mockItems.length)];
-            
-            const price = Math.floor(randomItem.basePrice * (0.85 + Math.random() * 0.3));
-            const active = Math.floor(randomItem.active * (0.8 + Math.random() * 0.4)) || 1;
-            const sold = Math.floor(randomItem.sold * (0.8 + Math.random() * 0.4));
-
-            displayVerdictCard(randomItem.name, price, active, sold);
-        }
-
-        function processEngineData(title) {
-            const randomPrice = Math.floor(Math.random() * 85) + 15;
-            const randomActive = Math.floor(Math.random() * 45) + 1;
-            const randomSold = Math.floor(Math.random() * 65);
-            displayVerdictCard(title, randomPrice, randomActive, randomSold);
-        }
-
-        function displayVerdictCard(title, marketPrice, activeCount, soldCount) {
-            const result = calculateVerdict(marketPrice, activeCount, soldCount);
-            
-            const card = document.getElementById('verdict-card');
-            const verdictText = document.getElementById('verdict-text');
-
-                
+        function handleStreamSuccess(stream) {
